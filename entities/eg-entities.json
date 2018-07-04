@@ -1,0 +1,17 @@
+{
+  "income": 0.0,
+  "start-date": 0,
+  "frequencys": {
+    "days": ["mutable", 0],
+    "daily": ["immutable", 1],
+    "weeks": ["mutable", 0],
+    "weekly": ["immutable", 7],
+    "bi-weekly": ["immutable", 15, 28, 30, 31],
+    "semi-monthly": ["immutable", 15, 28, 30, 31]
+  },
+  "deductions": [{
+    "id": 0,
+    "description": "",
+    "frequency": ""
+  }]
+}
