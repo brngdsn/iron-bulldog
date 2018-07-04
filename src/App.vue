@@ -127,7 +127,7 @@
         :class="{
           'is-loading': busy
         }"
-        :disabled="(isSignedIn === false) || (isSignedIn === null)"
+        :disabled="true"
         >Get calendar events
       </button>
       <button class="button is-success"
@@ -144,9 +144,6 @@
   <!-- COLUMNS -->
   <section class="section">
     <!-- <div class="container"> -->
-      <!-- <div class="columns">
-        <div class="column"></div>
-      </div> -->
       <div class="columns">
         <!-- MONEY/PICKER -->
         <div class="column is-one-third">
@@ -185,25 +182,45 @@
         <!-- CALENDAR -->
         <div class="column is-one-third">
           <b-datepicker inline placeholder="Calendar"
-            v-model="someDate"
+            v-model="selectedDate"
             icon="calendar-o"
             :indicators="indicators"
-            :events="getEventsv4()"
+            :events="getEventsV5()"
             >
           </b-datepicker>
         </div>
         <!-- SELECTED DATE EVENTS -->
         <div class="column is-one-third">
-          {{someDate}}
+          <h1><span style="color:lime;opacity:.4;">
+            <b-icon icon="usd"></b-icon>
+            </span>
+              <span v-if="selectedDateBreakdowns(selectedDate).length">
+                {{selectedDateBreakdowns(selectedDate)[selectedDateBreakdowns(selectedDate).length - 1].balance.toFixed(2)}}
+              </span>
+              <span v-else>
+                0.00
+              </span>
+          </h1>
+          <h1><span style="color:#7957d5;opacity:.15;">
+            <b-icon icon="calendar-o"></b-icon>
+            </span>{{daysFrom(this.startDate, selectedDate)}} days
+          </h1>
+          <br />
           <div class="box"
-            v-for="(breakdown, i) in selectedDateBreakdowns(someDate)"
+            v-for="(breakdown, i) in selectedDateBreakdowns(selectedDate)"
             :key="i"
             >
             <article class="media">
               <div class="media-content">
                 <div class="content">
                   <p>
-                    <strong>{{breakdown.title}}</strong> <small>@{{breakdown.date}}</small> <small>${{breakdown.amount}}</small>
+                    <strong>{{breakdown.summary}}</strong>
+                    <span class="tag is-success" v-if="breakdown.debitOrCredit === 'credit'">
+                      ${{breakdown.amount}}
+                    </span>
+                    <span class="tag is-danger" v-else>
+                      $-{{breakdown.amount}}
+                    </span>
                     <!-- <br>
                     Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean efficitur sit amet massa fringilla egestas. Nullam condimentum luctus turpis. -->
                   </p>
@@ -306,9 +323,10 @@
   </div>
 
   <br><br>
-  <!-- <pre style="padding:15px">getEventsv4()={{getEventsv4()}}</pre> -->
+  <!-- <pre style="padding:15px">getEventsV3()={{getEventsV3()}}</pre> -->
+  <!-- <pre style="padding:15px">getEventsV5()={{getEventsV5()}}</pre> -->
   <!-- <pre style="padding:15px">getChartData()={{getChartData()}}</pre> -->
-  <pre style="padding:15px">reduceEvents={{reduceEvents}}</pre>
+  <pre style="padding:15px">getReduceEvents={{getReduceEvents()}}</pre>
   <!-- <pre style="padding:15px">isSignedIn={{isSignedIn}}</pre> -->
   <!-- <pre style="padding:15px">currentUser={{currentUser}}</pre> -->
   <!-- <pre style="padding:15px">getCalendarEventData={{events.length ? getCalendarEventData(events[0]) : []}}</pre> -->
@@ -328,7 +346,7 @@
     },
     data () {
       return {
-        someDate: new Date(),
+        selectedDate: new Date(),
         startDate: new Date(),
         endDate: new Date(),
         isSignedIn: null,
@@ -348,6 +366,32 @@
       }
     },
     methods: {
+      getEventsV5 () {
+        return this.getReduceEvents().map(event => {
+          return {
+            ...event,
+            date: moment(event.date)
+          }
+        }).map(this.mapEventToCalendarStructure)
+      },
+      mapEventToCalendarStructure (event) {
+        console.log(event)
+        const year = moment(event.date).year()
+        const month = new Date(event.date).getMonth()
+        const day = moment(event.date).date()
+        console.log(year, month, day)
+        const type = event.debitOrCredit === 'credit' ? 'is-success' : 'is-danger'
+        return {
+          ...event,
+          type: type,
+          date: new Date(year, month, day)
+        }
+      },
+      getEventsV3 (startDate) {
+        return this.getReduceEvents().filter(event => {
+          return moment(event.date).format(`MMM Do YYYY`) === moment(startDate).format(`MMM Do YYYY`)
+        }).map(this.mapEventToCalendarStructure)
+      },
       getReduceEvents () {
         return this.events
           .map(this.mapEvents)
@@ -374,7 +418,7 @@
       },
       selectedDateBreakdowns (selectedDate) {
         return this.getReduceEvents().filter(event => {
-          console.log(typeof event.date, typeof selectedDate.toString(), event.date, selectedDate)
+          return moment(event.date).format(`MMMM Do YYYY`) === moment(selectedDate).format(`MMMM Do YYYY`)
         })
       },
       getEventsv4 () {
@@ -501,10 +545,11 @@
       },
       async onGetCalendarEventsClick () {
         this.busy = true
+        console.log(`fuck you`, this.startDate, this.endDate)
         window.gapi.client.calendar.events.list({
           'calendarId': 'pr3dt9udfam6c0p6gpfbmsqav4@group.calendar.google.com',
-          'timeMin': (new Date()).toISOString(),
-          'timeMax': (new Date('2018/05/31')).toISOString(),
+          'timeMin': (new Date(moment(this.startDate).format(`MMM Do YYYY`))).toISOString(),
+          'timeMax': (new Date(moment(this.endDate).format(`MMM Do YYYY`))).toISOString(),
           'showDeleted': false,
           'singleEvents': true,
           'maxResults': 1000,
@@ -564,7 +609,7 @@
           })
         })
       },
-      async initGoogleClient () {
+      initGoogleClient () {
         return new Promise((resolve, reject) => {
           window.gapi.load('client:auth2', () => {
             window.gapi.client.init({
